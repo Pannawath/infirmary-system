@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Student {
+  id           String          @id @default(uuid())
+  studentCode  String          @unique
+  fullName     String
+  gradeLevel   String
+  classroom    String
+  allergies    String?
+  chronicDiseases String?
+  guardianPhone String?
+  visits       InfirmaryVisit[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Medication {
+  id           String          @id @default(uuid())
+  name         String          @unique
+  category     String          @default("ยาทั่วไป")
+  unit         String          @default("เม็ด")
+  stockQuantity Int            @default(0)
+  minThreshold Int             @default(10)
+  indications  String?
+  dispensedItems DispensedItem[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model InfirmaryVisit {
+  id             String          @id @default(uuid())
+  studentId      String
+  student        Student         @relation(fields: [studentId], references: [id])
+  symptoms       String
+  bodyTemperature Float?
+  bloodPressure  String?
+  pulseRate      Int?
+  bedRest        Boolean         @default(false)
+  bedRestStart   DateTime?
+  bedRestEnd     DateTime?
+  treatmentNotes String?
+  status         String          @default("COMPLETED")
+  dispensedItems DispensedItem[]
+  visitedAt      DateTime        @default(now())
+  createdAt      DateTime        @default(now())
+}
+
+model DispensedItem {
+  id           String         @id @default(uuid())
+  visitId      String
+  visit        InfirmaryVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  medicationId String
+  medication   Medication     @relation(fields: [medicationId], references: [id])
+  quantity     Int
+  instructions String?
+  createdAt    DateTime       @default(now())
+}
