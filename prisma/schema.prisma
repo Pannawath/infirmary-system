@@ -16,6 +16,7 @@ model Student {
   allergies    String?
   chronicDiseases String?
   guardianPhone String?
+  isActive     Boolean @default(true)
   visits       InfirmaryVisit[]
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
@@ -39,6 +40,7 @@ model InfirmaryVisit {
   studentId      String
   student        Student         @relation(fields: [studentId], references: [id])
   symptoms       String
+  serviceType    String @default("DISPENSE")
   bodyTemperature Float?
   bloodPressure  String?
   pulseRate      Int?
@@ -61,4 +63,13 @@ model DispensedItem {
   quantity     Int
   instructions String?
   createdAt    DateTime       @default(now())
+}
+
+model AcademicTerm {
+  id String @id @default(uuid())
+  academicYear Int
+  termNumber Int
+  startDate DateTime
+  endDate DateTime
+  @@unique([academicYear, termNumber])
 }

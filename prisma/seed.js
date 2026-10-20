@@ -3,6 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function seed() {
+  if (process.env.RESET_DEMO !== 'yes') throw new Error('Seed resets all records. Set RESET_DEMO=yes only in a disposable demo database.');
   await prisma.dispensedItem.deleteMany();
   await prisma.infirmaryVisit.deleteMany();
   await prisma.student.deleteMany();
@@ -14,6 +15,11 @@ async function seed() {
     { studentCode: "50201", fullName: "เด็กชายนภัทร ตั้งมั่น", gradeLevel: "ม.2", classroom: "1", allergies: "แพ้อาหารทะเล, ยาซัลฟา (Sulfa)", chronicDiseases: "ภูมิแพ้อากาศ", guardianPhone: "086-555-1234" },
     { studentCode: "50301", fullName: "นางสาวศิริพร บุญรักษา", gradeLevel: "ม.3", classroom: "4", allergies: "ไม่มี", chronicDiseases: "ไมเกรน", guardianPhone: "082-999-8877" },
     { studentCode: "50401", fullName: "นายธนกฤต แสงทอง", gradeLevel: "ม.4", classroom: "2", allergies: "ไม่มี", chronicDiseases: "ไม่มี", guardianPhone: "084-111-2233" },
+    { studentCode: "50402", fullName: "นางสาวปาริชาติ แก้วใส", gradeLevel: "ม.4", classroom: "3", allergies: "ไม่มี", chronicDiseases: "ภูมิแพ้", guardianPhone: "080-345-6198" },
+    { studentCode: "50501", fullName: "นายณัฐวุฒิ คำดี", gradeLevel: "ม.5", classroom: "1", allergies: "ไม่มี", chronicDiseases: "ไม่มี", guardianPhone: "086-742-1309" },
+    { studentCode: "50502", fullName: "นางสาวพิมพ์ชนก สายใจ", gradeLevel: "ม.5", classroom: "2", allergies: "แพ้ยาไอบูโพรเฟน", chronicDiseases: "ไม่มี", guardianPhone: "082-551-7403" },
+    { studentCode: "50601", fullName: "นายวรเมธ ทองดี", gradeLevel: "ม.6", classroom: "1", allergies: "ไม่มี", chronicDiseases: "ไมเกรน", guardianPhone: "089-203-6157" },
+    { studentCode: "50602", fullName: "นางสาวชลธิชา รุ่งเรือง", gradeLevel: "ม.6", classroom: "2", allergies: "ไม่มี", chronicDiseases: "ไม่มี", guardianPhone: "081-916-2840" },
   ];
 
   for (const student of students) {
