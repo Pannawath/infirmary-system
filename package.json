@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "tauri": "tauri",
+    "desktop:prepare": "node tools/prepare-desktop.cjs",
+    "desktop:build": "tauri build --bundles nsis",
     "desktop:web": "next dev --hostname 127.0.0.1 --port 3103",
     "dev": "next dev",
     "build": "next build",

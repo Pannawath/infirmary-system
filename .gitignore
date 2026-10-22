@@ -2,6 +2,8 @@ node_modules
 /.npm-cache/
 /src-tauri/target/
 /src-tauri/gen/
+/src-tauri/backend/
+/release-artifacts/
 /.next/
 /out/
 /build
