@@ -1,0 +1,6 @@
+const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');const ts=require('typescript');const React=require('react');const {renderToStaticMarkup}=require('react-dom/server');
+const body={};let portalTarget,index=0;const mod={exports:{}};
+const source=ts.transpileModule(fs.readFileSync('src/app/EditVisitButton.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+vm.runInNewContext(source,{exports:mod.exports,document:{body},require(name){if(name==='react')return {...React,useState(initial){const state=React.useState(initial);return index++===0?[true,state[1]]:state}};if(name==='react-dom')return {createPortal(node,target){portalTarget=target;return node}};if(name==='./DeleteConfirmation')return {default:()=>null};return require(name)}});
+const html=renderToStaticMarkup(React.createElement(mod.exports.default,{id:'test'}));assert.equal(portalTarget,body);assert.ok(html.includes('aria-label="แก้ไขประวัติบริการ"'));assert.ok(html.includes('fixed inset-0 z-50'));assert.ok(html.includes('กำลังโหลด…'));
+console.log('PASS: visit editor portals to document.body, outside calendar/sticky/motion stacking contexts');

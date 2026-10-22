@@ -1,5 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import {Prisma} from '@prisma/client';
+
+export async function DELETE(request:Request){
+ try{
+  const b=await request.json();if(typeof b.id!=='string'||!b.id||typeof b.updatedAt!=='string')return NextResponse.json({error:'ข้อมูลยาสำหรับลบไม่ครบ กรุณาเปิดรายการใหม่'},{status:400});
+  await prisma.$transaction(async tx=>{
+   const med=await tx.medication.findUnique({where:{id:b.id},include:{_count:{select:{dispensedItems:true}}}});
+   if(!med)throw Error('NOT_FOUND');
+   if(med.updatedAt.toISOString()!==b.updatedAt)throw Error('CONFLICT');
+   if(med._count.dispensedItems>0)throw Error('USED');
+   await tx.medication.delete({where:{id:med.id}});
+  });return NextResponse.json({ok:true});
+ }catch(e){const message=e instanceof Error?e.message:'';const used=message==='USED'||e instanceof Prisma.PrismaClientKnownRequestError&&e.code==='P2003';return NextResponse.json({error:used?'ยานี้มีประวัติการจ่ายอยู่ จึงลบไม่ได้ เพื่อรักษาประวัติเดิม':message==='NOT_FOUND'?'ไม่พบรายการยา':message==='CONFLICT'?'ข้อมูลยามีการเปลี่ยนแปลง กรุณาปิดแล้วเปิดรายการใหม่':'ลบยาไม่สำเร็จ ไม่มีข้อมูลถูกลบ'},{status:message==='NOT_FOUND'?404:409})}
+}
 
 export async function GET() {
   try {

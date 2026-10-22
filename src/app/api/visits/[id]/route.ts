@@ -2,6 +2,18 @@ import {prisma} from '@/lib/db';
 import {createHash} from 'node:crypto';
 const version=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const include={student:true,dispensedItems:{include:{medication:true}}} as const;
+export async function DELETE(request:Request,{params}:{params:{id:string}}){
+ try{
+  const b=await request.json();if(typeof b.editVersion!=='string'||typeof b.returnStock!=='boolean')return Response.json({error:'กรุณายืนยันวิธีจัดการสต็อกและเปิดประวัติใหม่'},{status:400});
+  await prisma.$transaction(async tx=>{
+   const old=await tx.infirmaryVisit.findUnique({where:{id:params.id},include});
+   if(!old)throw Error('NOT_FOUND');
+   if(version(old)!==b.editVersion)throw Error('CONFLICT');
+   if(b.returnStock)for(const item of old.dispensedItems)await tx.medication.update({where:{id:item.medicationId},data:{stockQuantity:{increment:item.quantity}}});
+   await tx.infirmaryVisit.delete({where:{id:old.id}});
+  });return Response.json({ok:true});
+ }catch(e){const message=e instanceof Error?e.message:'';return Response.json({error:message==='NOT_FOUND'?'ไม่พบประวัติ หรือรายการนี้ถูกลบแล้ว':message==='CONFLICT'?'ข้อมูลมีการเปลี่ยนแปลง กรุณาปิดแล้วเปิดประวัติใหม่':'ลบประวัติไม่สำเร็จ ไม่มีข้อมูลถูกลบ'},{status:message==='NOT_FOUND'?404:409})}
+}
 export async function GET(_:Request,{params}:{params:{id:string}}){
  const visit=await prisma.infirmaryVisit.findUnique({where:{id:params.id},include});
  if(!visit)return Response.json({error:'ไม่พบประวัติ'},{status:404});

@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import DeleteConfirmation from './DeleteConfirmation';
 import ServiceWorkspace from './ServiceWorkspace';
+import DashboardOverview from './DashboardOverview';
+import {SideNavigation,TopNavigation} from './AppNavigation';
+import StudentWorkspace from './StudentWorkspace';
+import {useSharedNavigation} from '@/lib/shared-navigation';
+import {useWorkspaceMotion} from '@/lib/workspace-motion';
 import ReportsPanel from './ReportsPanel';
 import VisitHistory from './CalendarHistory';
 import {
@@ -34,6 +40,7 @@ type Tab =
   "dashboard" | "dispense" | "students" | "inventory" | "records" | "reports";
 type Med = {
   id: string;
+  updatedAt?: string;
   name: string;
   category: string;
   unit: string;
@@ -168,83 +175,18 @@ export default function App() {
     () => meds.filter((m) => m.stockQuantity <= m.minThreshold),
     [meds],
   );
-  const go = (x: Tab) => {
-    setTab(x);
-    setOpen(false);
-  };
+  useWorkspaceMotion(tab);
+  const go = useSharedNavigation(tab,setTab,()=>setOpen(false));
   return (
-    <div className="min-h-screen bg-[#f4f8fe] text-[#17375f]">
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col overflow-hidden bg-[#062d60] text-white transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
-      >
-        <div className="absolute inset-0 bg-[url('/sidebar-school.png')] bg-cover bg-bottom opacity-35" />
-        <div className="absolute inset-0 bg-gradient-to-br from-[#07346d]/95 via-[#042a59]/95 to-[#031d41]/95" />
-        <div className="relative flex justify-end px-4 py-3">
-          <button aria-label="ปิดเมนู" className="lg:hidden" onClick={() => setOpen(false)}>
-            <X />
-          </button>
-        </div>
-        <nav className="relative flex-1 space-y-1 px-4">
-          {menu.map(([id, name, Icon]) => (
-            <button
-              key={id}
-              onClick={() => go(id)}
-              aria-current={tab === id ? 'page' : undefined}
-              className={`flex w-full items-center gap-4 rounded-xl px-4 py-3.5 text-left text-sm font-medium ${tab === id ? "bg-[#087df5] shadow-lg" : "text-blue-100 hover:bg-white/10"}`}
-            >
-              <Icon size={19} />
-              {name}
-              {id === "inventory" && low.length > 0 && (
-                <span className="ml-auto rounded-full bg-amber-400 px-2 py-0.5 text-[10px] text-amber-950">
-                  {low.length}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </aside>
-      {open && (
-        <button
-          className="fixed inset-0 z-30 bg-slate-950/30 lg:hidden"
-          onClick={() => setOpen(false)}
-        />
-      )}
-      <main className="lg:ml-[264px]">
-        <header className="sticky top-0 z-20 flex h-[73px] items-center justify-between border-b border-slate-100 bg-white/95 px-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <button className="lg:hidden" onClick={() => setOpen(true)}>
-              <Menu />
-            </button>
-            <div className="flex items-center gap-3"><span className="text-xs text-slate-400">ห้องพยาบาล</span><span className="text-slate-200">/</span><span className="text-sm font-bold">{menu.find(([id])=>id===tab)?.[1]}</span></div>
-          </div>
-          <div className="flex items-center gap-5">
-            {tab !== 'dispense' && <button onClick={()=>go('dispense')} className="hidden items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 sm:flex"><Plus size={16}/>จ่ายยาใหม่</button>}
-            <div className="hidden text-right sm:block">
-              <p className="text-xs text-slate-500">
-                {new Date().toLocaleDateString("th-TH", {
-                  timeZone: "Asia/Bangkok",
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
-              </p>
-            </div>
-            <button
-              onClick={() => go("inventory")}
-              aria-label="ดูแจ้งเตือนสต็อกยา"
-              className="relative rounded-xl p-2 hover:bg-blue-50"
-            >
-              <Bell size={20} />
-              {low.length > 0 && (
-                <span className="absolute -right-1 -top-1 rounded-full bg-amber-400 px-1.5 text-[10px] font-bold">
-                  {low.length}
-                </span>
-              )}
-            </button>
-          </div>
-        </header>
+    <div className="app-shell min-h-screen bg-[#f4f8fe] text-[#17375f]">
+      <TopNavigation items={menu} active={tab} go={go} lowStock={low.length} open={open} onToggle={()=>setOpen(current=>!current)}/>
+      <SideNavigation items={menu} active={tab} go={go} lowStock={low.length} emptyStock={meds.filter(m=>m.stockQuantity===0).length} nearStock={low.filter(m=>m.stockQuantity>0).length} open={open} onClose={()=>setOpen(false)}/>
+      <main className="app-main lg:ml-[264px]">
         <div
-          className={`relative px-4 py-5 sm:px-7 ${tab === "dispense" ? "xl:h-[calc(100dvh-73px)] xl:overflow-hidden" : "min-h-[calc(100vh-73px)]"}`}
+          key={tab}
+          data-page-surface
+          data-motion-managed
+          className={`motion-page relative px-4 py-5 sm:px-7 ${tab === 'dashboard' ? 'dashboard-viewport' : ''} ${tab === "dispense" ? "xl:h-[calc(100dvh-73px)] xl:overflow-hidden" : "min-h-[calc(100vh-73px)]"}`}
         >
           {loadError && (
             <div
@@ -263,7 +205,7 @@ export default function App() {
             </div>
           )}
           {tab === "dashboard" ? (
-            <Dashboard
+            <DashboardOverview
               meds={meds}
               low={low}
               visits={visits}
@@ -883,6 +825,7 @@ function ServiceReport(){
 }
 function Inner({ tab, meds, visits, low, go }: any) {
   if(tab==='reports') return <ReportsPanel/>;
+  if(tab==='students') return <StudentWorkspace/>;
   const names: any = {
     dispense: "จ่ายยา",
     students: "จัดการข้อมูลนักเรียน",
@@ -893,10 +836,7 @@ function Inner({ tab, meds, visits, low, go }: any) {
   if (tab === "dispense") return <ServiceWorkspace meds={meds} />;
   return (
     <>
-      {tab !== "inventory" && (
-        <Head t={names[tab]} d="ข้อมูลล่าสุดจากระบบห้องพยาบาล" />
-      )}
-      <Card cn="overflow-hidden">
+      <div className="workspace-content">
         {tab === "inventory" ? (
           <Inventory meds={meds} />
         ) : tab === "records" ? (
@@ -918,7 +858,7 @@ function Inner({ tab, meds, visits, low, go }: any) {
             </div>
           </div>
         )}
-      </Card>
+      </div>
     </>
   );
 }
@@ -1545,6 +1485,7 @@ function Inventory({ meds }: { meds: Med[] }) {
   const [items, setItems] = useState(meds);
   const [editing, setEditing] = useState<Med | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleteTarget,setDeleteTarget]=useState<Med|null>(null);
   const [addStock, setAddStock] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -1585,6 +1526,22 @@ function Inventory({ meds }: { meds: Med[] }) {
       setSaving(false);
     }
   };
+  const deleteMedication = async () => {
+    if (!deleteTarget || saving) return;
+    const original = deleteTarget;
+    if (!original?.updatedAt) { setSaveError('กรุณาปิดแล้วเปิดรายการใหม่ก่อนลบ'); return; }
+    setSaving(true); setSaveError('');
+    try {
+      const response = await fetch('/api/medications', {method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:original.id, updatedAt:original.updatedAt})});
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'ลบยาไม่สำเร็จ');
+      setItems(all => all.filter(m => m.id !== original.id));
+      setDeleteTarget(null);
+      setEditing(null);
+      window.dispatchEvent(new Event('infirmary-data-changed'));
+    } catch (error) { setSaveError(error instanceof Error ? error.message : 'ลบยาไม่สำเร็จ'); }
+    finally { setSaving(false); }
+  };
   const visible = items.filter((m) => {
     const matchesText = `${m.name} ${m.category}`.toLowerCase().includes(query.toLowerCase());
     const isAttention = m.stockQuantity <= m.minThreshold;
@@ -1595,19 +1552,9 @@ function Inventory({ meds }: { meds: Med[] }) {
   const attention = items.filter((m) => m.stockQuantity <= m.minThreshold);
   const totalUnits = items.reduce((sum, med) => sum + med.stockQuantity, 0);
   return (
-    <div className="bg-[#f7faff] p-4 sm:p-6">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[.14em] text-[#4b79ad]">
-            Stock control
-          </p>
-          <h3 className="mt-1 text-xl font-extrabold text-[#17375f]">
-            ภาพรวมคลังยา
-          </h3>
-          <p className="mt-1 text-xs text-slate-500">
-            กด “แก้ไข” ที่แต่ละรายการเพื่อปรับสต็อกและรายละเอียดได้ทันที
-          </p>
-        </div>
+    <div className="workspace-page inventory-workspace">
+      {deleteTarget&&<DeleteConfirmation title={`ลบยา “${deleteTarget.name}”?`} description={`คงเหลือ ${deleteTarget.stockQuantity} ${deleteTarget.unit}\nการลบเป็นการลบถาวร ไม่สามารถกู้คืนได้\nยาที่มีประวัติการจ่ายแล้วจะไม่สามารถลบได้`} busy={saving} error={saveError} onCancel={()=>setDeleteTarget(null)} onConfirm={deleteMedication}/> }
+      <div className="workspace-actions-only">
         <button
           onClick={() => {
             setCreating(true);
@@ -1627,20 +1574,20 @@ function Inventory({ meds }: { meds: Med[] }) {
           <Plus size={15} /> เพิ่มยา
         </button>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="inventory-metrics">
         <div className="rounded-2xl border border-blue-100 bg-white p-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500">
-              จำนวนคงเหลือทั้งหมด
+              รายการยาทั้งหมด
             </span>
             <Boxes size={19} className="text-[#087df5]" />
           </div>
           <p className="mt-3 text-3xl font-extrabold text-[#17375f]">
-            {totalUnits.toLocaleString()}{" "}
-            <span className="text-sm font-semibold text-slate-500">หน่วย</span>
+            {items.length.toLocaleString()}{" "}
+            <span className="text-sm font-semibold text-slate-500">รายการ</span>
           </p>
           <p className="mt-2 text-xs text-slate-400">
-            จากเวชภัณฑ์ {items.length} รายการ
+            แยกยอดคงเหลือตามหน่วยของแต่ละยา
           </p>
         </div>
         <div className="rounded-2xl border border-amber-100 bg-white p-4">
@@ -1659,7 +1606,7 @@ function Inventory({ meds }: { meds: Med[] }) {
         <div className="rounded-2xl border border-emerald-100 bg-white p-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500">
-              สถานะพร้อมจ่าย
+              เหนือเกณฑ์ขั้นต่ำ
             </span>
             <CheckCircle2 size={19} className="text-emerald-500" />
           </div>
@@ -1672,34 +1619,7 @@ function Inventory({ meds }: { meds: Med[] }) {
           </p>
         </div>
       </div>
-      {attention.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-amber-600">
-              <CircleAlert size={19} />
-            </div>
-            <div className="min-w-[180px] flex-1">
-              <p className="text-sm font-bold text-amber-900">
-                รายการที่ต้องจัดการก่อน
-              </p>
-              <p className="text-xs text-amber-700">
-                {attention
-                  .slice(0, 3)
-                  .map((x) => x.name)
-                  .join(" • ")}
-                {attention.length > 3 ? " …" : ""}
-              </p>
-            </div>
-            <button
-              onClick={() => setFilter("attention")}
-              className="rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-white hover:bg-amber-600"
-            >
-              ดูรายการเสี่ยง
-            </button>
-          </div>
-        </div>
-      )}
-      <div className="mt-5 rounded-2xl border border-slate-100 bg-white">
+      <div className="workspace-panel inventory-catalog">
         <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h3 className="font-extrabold text-[#17375f]">รายการเวชภัณฑ์</h3>
@@ -1727,7 +1647,7 @@ function Inventory({ meds }: { meds: Med[] }) {
               ).map(([id, label]) => (
                 <button
                   key={id}
-                  onClick={() => setFilter(id)}
+                  aria-pressed={filter === id} onClick={() => setFilter(id)}
                   className={`rounded-lg px-3 py-2 transition ${filter === id ? "bg-white text-[#087df5] shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                 >
                   {label}
@@ -1736,9 +1656,10 @@ function Inventory({ meds }: { meds: Med[] }) {
             </div>
           </div>
         </div>
-        <div className="divide-y divide-slate-100">
+        <div className="inventory-list divide-y divide-slate-100">
           {visible.length ? (
             visible.map((m) => {
+              const empty = m.stockQuantity === 0;
               const risk = m.stockQuantity <= m.minThreshold;
               const pct = Math.min(
                 100,
@@ -1753,7 +1674,7 @@ function Inventory({ meds }: { meds: Med[] }) {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`grid h-11 w-11 place-items-center rounded-xl ${risk ? "bg-amber-50 text-amber-500" : "bg-blue-50 text-[#087df5]"}`}
+                      className={`grid h-11 w-11 place-items-center rounded-xl ${empty ? "bg-red-50 text-red-600" : risk ? "bg-yellow-50 text-yellow-600" : "bg-blue-50 text-[#087df5]"}`}
                     >
                       <Pill size={20} />
                     </div>
@@ -1768,24 +1689,24 @@ function Inventory({ meds }: { meds: Med[] }) {
                   </div>
                   <div>
                     <div className="mb-2 flex justify-between text-xs">
-                      <span className="font-bold text-[#17375f]">
+                      <span className={`font-bold ${empty ? "text-red-600" : risk ? "text-yellow-700" : "text-[#17375f]"}`}>
                         {m.stockQuantity} {m.unit}
                       </span>
                       <span className="text-slate-400">
                         ขั้นต่ำ {m.minThreshold}
                       </span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className={`inventory-stock-meter h-2 overflow-hidden rounded-full ${empty ? "bg-red-100" : risk ? "bg-yellow-100" : "bg-slate-100"}`}>
                       <div
-                        className={`h-full rounded-full ${risk ? "bg-amber-400" : "bg-emerald-500"}`}
+                        className={`h-full rounded-full ${empty ? "bg-red-500" : risk ? "bg-yellow-400" : "bg-emerald-500"}`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
                   </div>
                   <span
-                    className={`w-fit rounded-full px-3 py-1.5 text-xs font-bold ${risk ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}
+                    className={`w-fit rounded-full px-3 py-1.5 text-xs font-bold ${empty ? "bg-red-50 text-red-700" : risk ? "bg-yellow-50 text-yellow-800" : "bg-emerald-50 text-emerald-700"}`}
                   >
-                    {risk ? "ต้องเติมสต็อก" : "พร้อมจ่าย"}
+                    {m.stockQuantity===0 ? "หมดสต็อก" : risk ? "ใกล้หมด" : "พร้อมจ่าย"}
                   </span>
                   <button
                     onClick={() => {
@@ -1821,7 +1742,7 @@ function Inventory({ meds }: { meds: Med[] }) {
       </div>
       {editing && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/35 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label="ข้อมูลยา" className="workspace-modal w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-[#4b79ad]">
@@ -1832,7 +1753,7 @@ function Inventory({ meds }: { meds: Med[] }) {
                 </h3>
               </div>
               <button
-                onClick={() => setEditing(null)}
+                disabled={saving} onClick={() => setEditing(null)}
                 className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
               >
                 <X size={19} />
@@ -1925,8 +1846,9 @@ function Inventory({ meds }: { meds: Med[] }) {
               </label>
             </div>
             <div className="mt-6 flex justify-end gap-2">
+              {!creating && <button type="button" disabled={saving} onClick={()=>{setSaveError('');setDeleteTarget(items.find(m=>m.id===editing.id)||null)}} className="mr-auto rounded-xl border border-rose-200 px-4 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-50">ลบยา</button>}
               <button
-                onClick={() => setEditing(null)}
+                disabled={saving} onClick={() => setEditing(null)}
                 className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100"
               >
                 ยกเลิก

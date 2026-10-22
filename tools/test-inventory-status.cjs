@@ -1,0 +1,6 @@
+const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');const ts=require('typescript');const React=require('react');const {renderToStaticMarkup}=require('react-dom/server');
+const source=fs.readFileSync('src/app/page.tsx','utf8');const start=source.indexOf('function Inventory('),end=source.indexOf('function Records(',start);const mod={exports:{}};
+vm.runInNewContext(ts.transpileModule(source.slice(start,end)+'\nexport default Inventory;',{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports:mod.exports,require,useState:React.useState,useEffect:React.useEffect,...require('lucide-react')});
+for(const [stock,min,text,color] of [[0,10,'หมดสต็อก','bg-red-50 text-red-700'],[2,10,'ใกล้หมด','bg-yellow-50 text-yellow-800'],[10,10,'ใกล้หมด','bg-yellow-50 text-yellow-800'],[11,10,'พร้อมจ่าย','bg-emerald-50 text-emerald-700'],[0,0,'หมดสต็อก','bg-red-50 text-red-700']]){
+const html=renderToStaticMarkup(React.createElement(mod.exports.default,{meds:[{id:'test',name:'ทดสอบ',category:'ทั่วไป',unit:'เม็ด',stockQuantity:stock,minThreshold:min,indications:null}]}));assert.ok(html.includes(text));assert.ok(html.includes(color));}
+console.log('PASS: empty red, low yellow, healthy green, threshold boundary and zero threshold');

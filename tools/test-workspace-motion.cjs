@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');const ts=require('typescript');
+let effect,mutate,calls=[],reduced=false;const listeners={};const preference={get matches(){return reduced},addEventListener(type,fn){listeners['preference-'+type]=fn},removeEventListener(){}};
+const element=(name,top,left=0)=>({name,parentElement:null,matches(s){return name===s||s.split(',').includes(name)},getBoundingClientRect(){return {top,left,width:100,height:60}},animate(frames,options){calls.push({name,frames,options});assert.ok(options.duration>0);return {finished:new Promise(()=>{}),cancel(){}}}});
+const heading=element('heading',10),panel=element('panel',180),bar=element('.dashboard-chart-bar',200),line=element('polyline',200);bar.parentElement=panel;line.parentElement=panel;let dialog=[];
+const root={dataset:{},querySelectorAll(selector){if(selector.includes('.dashboard-chart-bar'))return [bar,line];if(selector.includes('[role="dialog"]'))return dialog;return [panel,heading]}};
+const doc={documentElement:{dataset:{}},visibilityState:'visible',querySelector(){return root}};
+const mod={exports:{}};const code=ts.transpileModule(fs.readFileSync('src/lib/workspace-motion.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
+vm.runInNewContext(code,{exports:mod.exports,performance:{now:()=>0},require(){return {useEffect(fn){effect=fn}}},document:doc,window:{matchMedia(){return preference},addEventListener(t,fn){listeners[t]=fn},removeEventListener(t){delete listeners[t]}},MutationObserver:class{constructor(fn){mutate=fn}observe(){}disconnect(){}}});
+mod.exports.useWorkspaceMotion('students');const cleanup=effect();
+assert.deepEqual(calls.slice(0,2).map(c=>c.name),['heading','panel'],'sort by visual height, not DOM order');
+assert.ok(calls.every(c=>c.options.delay===0),'all panels and graphs start simultaneously without a queue');
+assert.equal(calls[0].frames[0].opacity,0);assert.ok(!calls[0].frames[0].transform.includes('scale'));
+assert.equal(calls[2].options.delay,calls[0].options.delay,'graphs start with the panels');
+listeners['workspace-enter']();assert.equal(calls.length,8);
+root.dataset.morphArrival='true';listeners['workspace-enter']();assert.equal(calls.length,8,'never fade panels out again after the window transition');assert.equal(root.dataset.morphArrival,undefined);
+dialog=[element('[role="dialog"]',40)];mutate();assert.equal(calls.length,9);mutate();assert.equal(calls.length,9,'no replay while typing');
+reduced=true;listeners['preference-change']();listeners['workspace-enter']();assert.equal(calls.length,9);cleanup();assert.equal(listeners['workspace-enter'],undefined);
+console.log('PASS: simultaneous panels and graphs, no artificial delays, replay, no nested row motion and reduced motion');
