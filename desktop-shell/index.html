@@ -58,20 +58,20 @@
   <div class="card">
     <div class="spinner"></div>
     <h2>ห้องพยาบาลสารคามพิทยาคม</h2>
-    <p id="status">กำลังเตรียมฐานข้อมูลและเปิดระบบ…</p>
+    <p id="status">กำลังเปิดระบบ…</p>
   </div>
   <script>
     async function checkBackend() {
       const start = Date.now();
-      while (Date.now() - start < 30000) {
+      while (Date.now() - start < 20000) {
         try {
-          const res = await fetch('http://127.0.0.1:3103/api/desktop-health');
+          const res = await fetch('http://127.0.0.1:3103/api/desktop-health', { mode: 'cors' });
           if (res.ok) {
             window.location.replace('http://127.0.0.1:3103');
             return;
           }
         } catch (e) {}
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(r => setTimeout(r, 150));
       }
       document.getElementById('status').textContent = 'ไม่สามารถเชื่อมต่อระบบภายในได้ กรุณาปิดแล้วเปิดโปรแกรมใหม่อีกครั้ง';
     }

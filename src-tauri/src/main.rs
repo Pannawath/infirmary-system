@@ -1,9 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::fs;
+use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tauri::Manager;
 
 #[cfg(target_os = "windows")]
@@ -84,6 +86,17 @@ fn start_backend() -> Option<Child> {
     }
 }
 
+#[allow(dead_code)]
+fn wait_for_backend() {
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(20) {
+        if TcpStream::connect("127.0.0.1:3103").is_ok() {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
 fn main() {
     let backend_child = if cfg!(not(debug_assertions)) {
         start_backend()
@@ -93,6 +106,23 @@ fn main() {
 
     let app = tauri::Builder::default()
         .manage(BackendProcess(Mutex::new(backend_child)))
+        .setup(|app| {
+            #[cfg(not(debug_assertions))]
+            {
+                let app_handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    wait_for_backend();
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        if let Ok(target_url) = "http://127.0.0.1:3103".parse() {
+                            let _ = window.navigate(target_url);
+                        }
+                    }
+                });
+            }
+            #[cfg(debug_assertions)]
+            let _ = app;
+            Ok(())
+        })
         .build(tauri::generate_context!())
         .expect("Could not start SPK infirmary");
 
