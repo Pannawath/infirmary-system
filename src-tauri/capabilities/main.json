@@ -1,6 +1,21 @@
 {
-  "identifier":"main-window",
-  "description":"Window controls for the local infirmary app only",
-  "windows":["main"],
-  "permissions":["core:default","core:window:allow-minimize","core:window:allow-toggle-maximize","core:window:allow-close","core:window:allow-start-dragging"]
+  "identifier": "main-window",
+  "description": "Window controls for the local infirmary app only",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["http://127.0.0.1:3103*", "http://localhost:3103*"]
+  },
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:window:default",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging",
+    "core:window:allow-is-maximized",
+    "core:window:allow-is-fullscreen"
+  ]
 }
