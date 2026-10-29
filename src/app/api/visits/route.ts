@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import type {Prisma} from '@prisma/client';
+import {withVisitSnapshot} from '@/lib/visit-snapshot';
 
 export async function GET(request:Request) {
   try {
@@ -16,7 +17,7 @@ export async function GET(request:Request) {
       if(from&&to&&from>to)return NextResponse.json({error:'วันเริ่มต้นต้องไม่เกินวันสิ้นสุด'},{status:400});
       const where:Prisma.InfirmaryVisitWhereInput={
         ...(service?{serviceType:service}:{}),...(from||to?{visitedAt:range}:{}),
-        ...(grade||room?{student:{...(grade?{gradeLevel:grade}:{}),...(room?{classroom:room}:{})}}:{}),
+        AND:[...(grade?[{OR:[{gradeSnapshot:grade},{gradeSnapshot:null,student:{gradeLevel:grade}}]}]:[]),...(room?[{OR:[{classroomSnapshot:room},{classroomSnapshot:null,student:{classroom:room}}]}]:[])],
         ...(medication?{dispensedItems:{some:{medication:{name:{contains:medication}}}}}:{}),
         ...(q?{OR:[{student:{fullName:{contains:q}}},{student:{studentCode:{contains:q}}},{symptoms:{contains:q}},{treatmentNotes:{contains:q}}]}:{}),
       };
@@ -25,7 +26,7 @@ export async function GET(request:Request) {
         prisma.infirmaryVisit.count({where}),
         prisma.student.groupBy({by:['gradeLevel','classroom'],orderBy:[{gradeLevel:'asc'},{classroom:'asc'}]}),
       ]);
-      return NextResponse.json({items,total,groups,page,pageSize:25});
+      return NextResponse.json({items:items.map(withVisitSnapshot),total,groups,page,pageSize:25});
     }
     const visits = await prisma.infirmaryVisit.findMany({
       include: {
@@ -39,7 +40,7 @@ export async function GET(request:Request) {
       orderBy: { visitedAt: 'desc' },
       take: 50,
     });
-    return NextResponse.json(visits);
+    return NextResponse.json(visits.map(withVisitSnapshot));
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch visits' }, { status: 500 });
   }
@@ -74,9 +75,15 @@ export async function POST(request: Request) {
     }
 
     const createdVisit = await prisma.$transaction(async (tx) => {
+      const current=await tx.appSetting.findUnique({where:{key:'currentYearId'}});
+      const year=current?await tx.schoolYear.findUnique({where:{id:current.value}}):null;
       const visit = await tx.infirmaryVisit.create({
         data: {
           studentId,
+          studentNameSnapshot:student.fullName,
+          gradeSnapshot:student.gradeLevel,
+          classroomSnapshot:student.classroom,
+          academicYearSnapshot:year?.year,
           symptoms,
           serviceType,
           bodyTemperature: bodyTemperature ? parseFloat(bodyTemperature) : null,

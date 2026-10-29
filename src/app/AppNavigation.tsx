@@ -2,7 +2,7 @@
 import DesktopControls from './DesktopControls';
 import {useEffect,useState} from 'react';
 import {Bell,CalendarDays,ChevronRight,Home,type LucideIcon} from 'lucide-react';
-type Tab='dashboard'|'dispense'|'students'|'inventory'|'records'|'reports';
+type Tab='dashboard'|'dispense'|'students'|'inventory'|'records'|'reports'|'settings';
 type NavItem=readonly [Tab,string,LucideIcon];
 type Props={items:readonly NavItem[];active:Tab;go:(tab:Tab)=>void;lowStock:number};
 export function SideNavigation({items,active,go,emptyStock,nearStock,open,onClose}:Props&{emptyStock:number;nearStock:number;open:boolean;onClose:()=>void}){

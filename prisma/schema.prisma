@@ -10,6 +10,9 @@ datasource db {
 model Student {
   id           String          @id @default(uuid())
   studentCode  String          @unique
+  personType   String          @default("STUDENT")
+  department   String?
+  position     String?
   fullName     String
   gradeLevel   String
   classroom    String
@@ -18,6 +21,7 @@ model Student {
   guardianPhone String?
   isActive     Boolean @default(true)
   visits       InfirmaryVisit[]
+  enrollments  StudentEnrollment[]
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 }
@@ -39,6 +43,10 @@ model InfirmaryVisit {
   id             String          @id @default(uuid())
   studentId      String
   student        Student         @relation(fields: [studentId], references: [id])
+  studentNameSnapshot String?
+  gradeSnapshot String?
+  classroomSnapshot String?
+  academicYearSnapshot Int?
   symptoms       String
   serviceType    String @default("DISPENSE")
   bodyTemperature Float?
@@ -72,4 +80,59 @@ model AcademicTerm {
   startDate DateTime
   endDate DateTime
   @@unique([academicYear, termNumber])
+}
+
+model SchoolYear {
+  id String @id @default(uuid())
+  year Int @unique
+  createdAt DateTime @default(now())
+  enrollments StudentEnrollment[]
+  imports StudentImport[]
+}
+
+model StudentEnrollment {
+  id String @id @default(uuid())
+  studentId String
+  student Student @relation(fields: [studentId], references: [id])
+  yearId String
+  year SchoolYear @relation(fields: [yearId], references: [id])
+  gradeLevel String
+  classroom String
+  rollNumber String?
+  status String @default("ACTIVE")
+  updatedAt DateTime @updatedAt
+  @@unique([studentId, yearId])
+  @@index([yearId, status])
+}
+
+model StudentImport {
+  id String @id @default(uuid())
+  yearId String
+  year SchoolYear @relation(fields: [yearId], references: [id])
+  filename String
+  personType String @default("STUDENT")
+  fileHash String
+  rowsJson String
+  baseVersion String
+  status String @default("PREVIEW")
+  resultJson String?
+  createdAt DateTime @default(now())
+  confirmedAt DateTime?
+  changes StudentImportChange[]
+}
+
+model StudentImportChange {
+  id String @id @default(uuid())
+  importId String
+  batch StudentImport @relation(fields: [importId], references: [id])
+  studentCode String
+  kind String
+  changesJson String
+  createdAt DateTime @default(now())
+  @@index([studentCode])
+}
+
+model AppSetting {
+  key String @id
+  value String
 }

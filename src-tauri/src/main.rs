@@ -36,19 +36,12 @@ fn find_backend_dir() -> Option<PathBuf> {
     None
 }
 
-fn setup_database(backend_dir: &Path) -> Result<PathBuf, String> {
+fn setup_database(_backend_dir: &Path) -> Result<PathBuf, String> {
     let app_data = std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string());
     let db_dir = PathBuf::from(app_data).join("th.ac.spk.infirmary");
     fs::create_dir_all(&db_dir).map_err(|e| format!("Failed to create AppData directory: {}", e))?;
 
     let target_db = db_dir.join("infirmary.db");
-    if !target_db.exists() {
-        let initial_db = backend_dir.join("initial.db");
-        if initial_db.exists() {
-            fs::copy(&initial_db, &target_db)
-                .map_err(|e| format!("Failed to copy initial database: {}", e))?;
-        }
-    }
 
     Ok(target_db)
 }
@@ -59,7 +52,7 @@ fn start_backend() -> Option<Child> {
         Ok(path) => path,
         Err(err) => {
             eprintln!("Database setup warning: {}", err);
-            backend_dir.join("initial.db")
+            return None;
         }
     };
 
@@ -68,7 +61,7 @@ fn start_backend() -> Option<Child> {
 
     let mut cmd = Command::new(&node_exe);
     cmd.current_dir(&backend_dir)
-        .arg("server.js")
+        .arg("desktop-bootstrap.cjs")
         .env("PORT", "3103")
         .env("HOSTNAME", "127.0.0.1")
         .env("NODE_ENV", "production")

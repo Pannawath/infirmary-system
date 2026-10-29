@@ -33,10 +33,10 @@
 npm install
 ```
 
-### 2. Database Migration & Seed Data
+### 2. Create an Empty Local Database
 ```bash
 npx prisma db push
-node prisma/seed.js
+npx prisma generate
 ```
 
 ### 3. Run Development Server
@@ -45,3 +45,26 @@ npm run dev
 ```
 
 เปิดบราวเซอร์ที่ [http://localhost:3000](http://localhost:3000)
+
+## Windows Desktop
+
+Download the installer from GitHub Releases. A fresh installation starts empty.
+Create an academic year in Settings, then import student and staff Excel files separately.
+Excel previews must be confirmed before records are saved. Staff imports do not store civil IDs or qualifications.
+
+```bash
+npm run desktop:prepare
+npm run desktop:build
+```
+
+The installer contains `schema.sql`, not a database file. The app creates its local SQLite
+database on first launch. Updates preserve existing user records and back up the database
+before additive schema upgrades; reinstalling does not erase existing application data.
+
+## Private Data
+
+Never commit databases, database backups, Excel rosters, exports, `.env` files or credentials.
+These files are ignored by Git and excluded from the desktop resource bundle.
+Use the Settings import screens to load real data locally after installation.
+The optional Cloudflare gateway requires separate local password setup; no password or
+gateway credentials are distributed in this repository or the installer.

@@ -23,3 +23,15 @@ dev.db-journal
 /.next-dev/
 /work/
 /prisma/backup-*.db
+*.db
+*.db-*
+*.db.*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.xlsx
+*.xls
+*.csv
+.env*
+!.env.example

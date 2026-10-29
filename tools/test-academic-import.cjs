@@ -1,0 +1,41 @@
+const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const {spawnSync,spawn}=require('node:child_process');const {DatabaseSync}=require('node:sqlite');const {PrismaClient}=require('@prisma/client');const ExcelJS=require('exceljs');
+const root=path.resolve(__dirname,'..');const dir=fs.mkdtempSync(path.join(root,'work','academic-test-'));const dbPath=path.join(dir,'test.db');
+const schema=spawnSync(process.execPath,[path.join(root,'node_modules/prisma/build/index.js'),'migrate','diff','--from-empty','--to-schema-datamodel',path.join(root,'prisma/schema.prisma'),'--script'],{encoding:'utf8'});assert.equal(schema.status,0,schema.stderr);const db=new DatabaseSync(dbPath);db.exec(schema.stdout);db.close();
+const databaseUrl='file:'+dbPath.replaceAll('\\','/');const p=new PrismaClient({datasources:{db:{url:databaseUrl}}});const base='http://127.0.0.1:3107';
+const server=spawn(process.execPath,[path.join(root,'node_modules/next/dist/bin/next'),'start','--hostname','127.0.0.1','--port','3107'],{cwd:root,env:{...process.env,INFIRMARY_DATABASE_URL:databaseUrl,INFIRMARY_DESKTOP_TOKEN:''},windowsHide:true,stdio:['ignore','pipe','pipe']});let log='';server.stdout.on('data',x=>{log=(log+x).slice(-3000)});server.stderr.on('data',x=>{log=(log+x).slice(-3000)});
+const request=async(url,method='GET',data)=>{const r=await fetch(base+url,{method,...(data?{headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{})});return {status:r.status,data:await r.json()}};
+async function file(rows){const workbook=new ExcelJS.Workbook();const sheet=workbook.addWorksheet('รายชื่อ');sheet.addRows([['รหัสนักเรียน','ชื่อ–นามสกุล','ระดับชั้น','ห้อง','เลขที่'],...rows]);return Buffer.from(await workbook.xlsx.writeBuffer())}
+async function preview(yearId,rows){const form=new FormData();form.set('file',new Blob([await file(rows)]),'temporary-test.xlsx');form.set('mode','preview');form.set('yearId',yearId);form.set('sheet','รายชื่อ');form.set('headerRow','1');form.set('columns',JSON.stringify({studentCode:1,fullName:2,gradeLevel:3,classroom:4,rollNumber:5}));const r=await fetch(base+'/api/settings/student-imports',{method:'POST',body:form});return {status:r.status,data:await r.json()}}
+(async()=>{try{
+ for(let i=0;i<60;i++){try{if((await fetch(base+'/api/desktop-health')).ok)break}catch{}if(i===59)throw Error('Server not ready: '+log);await new Promise(r=>setTimeout(r,500))}
+ const original=await p.student.create({data:{studentCode:'00001',fullName:'ชื่อเดิมทดสอบ',gradeLevel:'ม.1',classroom:'1',allergies:'แพ้อาหารทดสอบ',chronicDiseases:'โรคทดสอบ'}});
+ const missing=await p.student.create({data:{studentCode:'00002',fullName:'คนหายจากไฟล์ทดสอบ',gradeLevel:'ม.1',classroom:'1'}});
+ const visit=await p.infirmaryVisit.create({data:{studentId:original.id,symptoms:'ทดสอบ',serviceType:'REST'}});
+ const y=await request('/api/settings/years','POST',{year:2991});assert.equal(y.status,201);const yearId=y.data.id;assert.equal((await request('/api/settings/years','POST',{year:2991})).status,409);
+ for(const s of [original,missing])await p.studentEnrollment.create({data:{studentId:s.id,yearId,gradeLevel:s.gradeLevel,classroom:s.classroom}});
+ const rows=[['00001','ชื่อใหม่ทดสอบ','ม.2','3','5'],['00003','นักเรียนใหม่ทดสอบ','ม.1','2','7']];
+ let draft=await preview(yearId,rows);assert.equal(draft.status,200,JSON.stringify(draft.data));assert.ok(draft.data.changes.some(c=>c.kind==='UPDATED'&&c.changes.some(x=>x.field==='fullName')));assert.ok(draft.data.changes.some(c=>c.kind==='MISSING'));
+ assert.equal((await p.student.findUnique({where:{id:original.id}})).fullName,'ชื่อเดิมทดสอบ');
+ let result=await request('/api/settings/student-imports','PATCH',{id:draft.data.id,pauseMissing:true,confirm:true});assert.equal(result.status,200,JSON.stringify(result.data));assert.equal(result.data.paused,1);
+ assert.equal((await request('/api/settings/student-imports','PATCH',{id:draft.data.id,pauseMissing:false,confirm:true})).status,409);
+ const saved=await p.student.findUnique({where:{id:original.id}});assert.equal(saved.allergies,original.allergies);assert.equal(saved.chronicDiseases,original.chronicDiseases);
+ const oldVisit=await p.infirmaryVisit.findUnique({where:{id:visit.id}});assert.equal(oldVisit.studentNameSnapshot,'ชื่อเดิมทดสอบ');assert.equal(oldVisit.gradeSnapshot,'ม.1');
+ assert.equal((await request('/api/settings/years','PATCH',{id:yearId})).status,200);assert.equal((await request('/api/students?directory=1&yearId='+yearId)).data.total,2);
+ assert.equal((await p.student.findUnique({where:{id:missing.id}})).isActive,false);
+ const history=await request('/api/visits?history=1&grade='+encodeURIComponent('ม.1'));assert.equal(history.data.total,1);assert.equal(history.data.items[0].student.fullName,'ชื่อเดิมทดสอบ');
+ const y2=await request('/api/settings/years','POST',{year:2992});draft=await preview(y2.data.id,[['00001','ชื่อใหม่ทดสอบ','ม.3','4','5']]);assert.equal(draft.status,200);assert.equal((await request('/api/settings/student-imports','PATCH',{id:draft.data.id,pauseMissing:false,confirm:true})).status,200);
+ assert.equal(await p.student.count({where:{studentCode:'00001'}}),1);assert.equal((await p.student.findUnique({where:{id:original.id}})).gradeLevel,'ม.2');
+ assert.equal((await request('/api/students?yearId='+y2.data.id)).data[0].gradeLevel,'ม.3');
+ draft=await preview(yearId,rows);await p.student.update({where:{id:original.id},data:{allergies:'แก้หลังตรวจ'}});assert.equal((await request('/api/settings/student-imports','PATCH',{id:draft.data.id,pauseMissing:false,confirm:true})).status,409);
+ assert.equal((await preview(yearId,[rows[0],rows[0]])).status,400);
+ const audit=await request('/api/settings/student-imports?yearId='+yearId);assert.ok(audit.data[0].changes.some(c=>JSON.parse(c.changesJson).changes.some(x=>x.field==='fullName')));
+ const staffWorkbook=new ExcelJS.Workbook();for(const [department,name]of [['ครูทดสอบ','บุคลากร กอไก่'],['เจ้าหน้าที่ทดสอบ','บุคลากร ขอไข่']]){const sheet=staffWorkbook.addWorksheet(department);sheet.addRows([['รายชื่อทดสอบ'],[],['ลำดับ','ชื่อ - นามสกุล','ตำแหน่ง','เลขประจำตัวประชาชน'],[1,name,'ครู','1234567890123']])}
+ async function staffPreview(workbook){const form=new FormData();form.set('file',new Blob([await workbook.xlsx.writeBuffer()]),'staff-test.xlsx');form.set('personType','STAFF');form.set('yearId',yearId);form.set('mode','preview');const r=await fetch(base+'/api/settings/student-imports',{method:'POST',body:form});return {status:r.status,data:await r.json()}}
+ let staffDraft=await staffPreview(staffWorkbook);assert.equal(staffDraft.status,200,JSON.stringify(staffDraft.data));assert.equal(staffDraft.data.total,2);assert.ok(!JSON.stringify(staffDraft.data).includes('1234567890123'));assert.ok(!staffDraft.data.changes.some(c=>c.kind==='MISSING'));assert.equal(await p.student.count({where:{personType:'STAFF'}}),0);
+ assert.equal((await request('/api/settings/student-imports','PATCH',{id:staffDraft.data.id,pauseMissing:false,confirm:true})).status,200);
+ assert.equal((await request('/api/students?directory=1&personType=STAFF')).data.total,2);assert.equal((await request('/api/students?directory=1&personType=STUDENT')).data.total,2);
+ const staff=await p.student.findFirst({where:{personType:'STAFF'}});assert.ok(staff.isActive);assert.equal((await request('/api/visits','POST',{studentId:staff.id,serviceType:'REST',symptoms:'ทดสอบบุคลากร',dispensedMedicines:[]})).status,201);
+ staffDraft=await staffPreview(staffWorkbook);assert.equal(staffDraft.status,200);assert.equal(staffDraft.data.changes.filter(c=>c.kind==='NEW').length,0);assert.equal(staffDraft.data.changes.filter(c=>c.kind==='UNCHANGED').length,2);
+ staffWorkbook.worksheets[0].getCell('B4').value={formula:'[1]missing!B1',result:'#VALUE!'};assert.equal((await staffPreview(staffWorkbook)).status,400);
+ console.log('PASS: isolated DB, academic years, student/staff XLSX preview/confirm, data minimization, type filters, staff service, reimport deduplication, broken formula rejection, stale/duplicate rejection, health/history retention.');
+ }finally{server.kill();await p.$disconnect()}})().catch(e=>{console.error(e);console.error(log);process.exitCode=1});

@@ -1,6 +1,7 @@
 'use client';
 import {useEffect} from 'react';
 const blocks:Record<string,string>={
+ settings:'.settings-year-panel,.settings-main>section',
  dashboard:'.dashboard-welcome,.dashboard-metric,.dashboard-activity,.dashboard-stock,.dashboard-calendar,.dashboard-action-panel,.dashboard-term-card,.dashboard-recent',
  dispense:'.service-desk-toolbar,.service-flow,.service-panel',
  students:'.workspace-heading,.student-grade-nav,.student-directory',

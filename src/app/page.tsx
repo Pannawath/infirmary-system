@@ -6,6 +6,7 @@ import ServiceWorkspace from './ServiceWorkspace';
 import DashboardOverview from './DashboardOverview';
 import {SideNavigation,TopNavigation} from './AppNavigation';
 import StudentWorkspace from './StudentWorkspace';
+import SettingsWorkspace from './SettingsWorkspace';
 import {useSharedNavigation} from '@/lib/shared-navigation';
 import {useWorkspaceMotion} from '@/lib/workspace-motion';
 import ReportsPanel from './ReportsPanel';
@@ -34,10 +35,11 @@ import {
   Pencil,
   Save,
   Check,
+  Settings,
 } from "lucide-react";
 
 type Tab =
-  "dashboard" | "dispense" | "students" | "inventory" | "records" | "reports";
+  "dashboard" | "dispense" | "students" | "inventory" | "records" | "reports" | "settings";
 type Med = {
   id: string;
   updatedAt?: string;
@@ -73,10 +75,11 @@ type StudentResult = {
 const menu = [
   ["dashboard", "แดชบอร์ด", Home],
   ["dispense", "บันทึกบริการ", Pill],
-  ["students", "นักเรียน", Users],
+  ["students", "รายชื่อ", Users],
   ["inventory", "คลังยา", PackageOpen],
   ["records", "ประวัติการจ่ายยา", ClipboardList],
   ["reports", "รายงาน", FileBarChart],
+  ["settings", "ตั้งค่า", Settings],
 ] as const;
 const samples: Med[] = [
   {
@@ -824,6 +827,7 @@ function ServiceReport(){
  return <div><Head t="รายงานบริการรายภาคเรียน" d="เลือกวันเริ่มต้นและสิ้นสุดตามภาคเรียนจริงของโรงเรียน"/><Card cn="p-5"><div className="flex flex-wrap items-end gap-4"><label className="text-sm font-semibold">ตั้งแต่<input type="date" value={from} onChange={e=>setFrom(e.target.value)} className="mt-1 block rounded-xl border border-slate-200 p-2"/></label><label className="text-sm font-semibold">ถึง<input type="date" value={to} onChange={e=>setTo(e.target.value)} className="mt-1 block rounded-xl border border-slate-200 p-2"/></label><button onClick={()=>window.print()} className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white">พิมพ์รายงาน / บันทึก PDF</button></div>{loading&&<p className="mt-4 text-sm text-slate-500">กำลังโหลดรายงาน…</p>}{error&&<p role="alert" className="mt-4 text-rose-600">{error}</p>}{data&&<><div className="mt-5 grid gap-3 sm:grid-cols-3">{[['DISPENSE','จ่ายยา'],['WOUND_CARE','ทำแผล'],['REST','นอนพัก']].map(([id,label])=><div key={id} className="rounded-xl bg-blue-50 p-4"><p className="text-sm">{label}</p><p className="mt-2 text-3xl font-bold">{data.services[id]} <span className="text-xs font-normal">ครั้ง</span></p></div>)}</div><p className="my-4 text-sm">รวม {data.total} ครั้ง · นักเรียนไม่ซ้ำ {data.uniqueStudents} คน</p><h3 className="font-bold">การเบิกยาภายในช่วงวันที่เลือก</h3>{data.medications.map(m=><div key={m.name} className="flex justify-between gap-3 border-b py-3 text-sm"><span>{m.name}</span><b>{m.quantity} {m.unit}</b></div>)}{!data.medications.length&&<p className="py-5 text-sm text-slate-500">ไม่มีการเบิกยาในช่วงนี้</p>}</>}</Card></div>
 }
 function Inner({ tab, meds, visits, low, go }: any) {
+  if(tab==='settings') return <SettingsWorkspace/>;
   if(tab==='reports') return <ReportsPanel/>;
   if(tab==='students') return <StudentWorkspace/>;
   const names: any = {

@@ -15,12 +15,13 @@ console.log('Building Next.js production standalone...');
 run(['node_modules/next/dist/bin/next', 'build']);
 
 const target = path.join(root, 'src-tauri', 'backend');
+if(path.resolve(target)!==path.join(root,'src-tauri','backend'))throw Error('Unexpected backend output directory');
 fs.rmSync(target, { recursive: true, force: true });
 fs.mkdirSync(target, { recursive: true });
 
 const filter = (source) => {
   const name = path.basename(source);
-  return !name.startsWith('.env') && !/\.(xlsx|csv)(-|$)/i.test(name) && name !== '.git';
+  return !name.startsWith('.env') && !/\.(xlsx|csv|db|sqlite)(-|$)/i.test(name) && name !== '.git';
 };
 
 console.log('Copying standalone bundle...');
@@ -37,21 +38,19 @@ for (const name of ['.prisma/client', '@prisma/client']) {
   }
 }
 
-// Copy dev.db with 3,760 real students to initial.db
-const devDbPath = path.join(root, 'prisma', 'dev.db');
-const initialDbPath = path.join(target, 'initial.db');
-if (!fs.existsSync(devDbPath)) {
-  throw new Error('dev.db not found; cannot prepare desktop database');
-}
+// Generate a fresh schema-only database. NEVER ship live data or backups.
+const schemaPath = path.join(target, 'schema.sql');
+const schema=spawnSync(process.execPath,['node_modules/prisma/build/index.js','migrate','diff','--from-empty','--to-schema-datamodel','prisma/schema.prisma','--script'],{encoding:'utf8'});
+if(schema.status!==0)throw Error('Could not generate empty database schema');
+fs.writeFileSync(schemaPath,schema.stdout);
+fs.copyFileSync(path.join(root,'tools','desktop-bootstrap.cjs'),path.join(target,'desktop-bootstrap.cjs'));
 
-// Ensure clean copy of database
-const sourceDb = new DatabaseSync(devDbPath);
-sourceDb.exec(`VACUUM INTO '${initialDbPath.replaceAll('\\', '/')}'`);
-sourceDb.close();
-
-const verifyDb = new DatabaseSync(initialDbPath);
+const verifyDb = new DatabaseSync(':memory:');verifyDb.exec(schema.stdout);
 const studentCount = verifyDb.prepare('SELECT count(*) as c FROM Student WHERE isActive=1').get().c;
 const medCount = verifyDb.prepare('SELECT count(*) as c FROM Medication').get().c;
+for(const {name}of verifyDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all()){
+ if(verifyDb.prepare('SELECT COUNT(*) AS c FROM "'+name.replaceAll('"','""')+'"').get().c!==0)throw Error('Installer database must be completely empty');
+}
 verifyDb.close();
 
 fs.writeFileSync(path.join(target, 'runtime-info.json'), JSON.stringify({
@@ -62,4 +61,4 @@ fs.writeFileSync(path.join(target, 'runtime-info.json'), JSON.stringify({
   buildTime: new Date().toISOString(),
 }, null, 2));
 
-console.log(`Backend prepared successfully! Real students: ${studentCount}, Medications: ${medCount}`);
+console.log(`Backend prepared successfully! Empty database verified: ${studentCount} people, ${medCount} medications.`);
