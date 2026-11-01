@@ -35,3 +35,5 @@ dev.db-journal
 *.csv
 .env*
 !.env.example
+
+/dist/

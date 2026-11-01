@@ -6,13 +6,16 @@ export async function GET() {
   try {
     const bangkokDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
     const today = new Date(`${bangkokDate}T00:00:00+07:00`);
+    const currentSetting = await prisma.appSetting.findUnique({ where: { key: 'currentYearId' } });
 
     const [totalVisits, todayVisits, totalStudents, lowStockCount, recentVisits, topMeds] = await Promise.all([
       prisma.infirmaryVisit.count(),
       prisma.infirmaryVisit.count({
         where: { visitedAt: { gte: today } },
       }),
-      prisma.student.count({where:{isActive:true}}),
+      currentSetting?.value
+        ? prisma.studentEnrollment.count({ where: { yearId: currentSetting.value, status: 'ACTIVE' } })
+        : prisma.student.count({ where: { isActive: true } }),
       prisma.medication.count({
         where: { stockQuantity: { lte: 15 } },
       }),

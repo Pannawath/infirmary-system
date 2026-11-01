@@ -12,7 +12,6 @@ export async function PATCH(request:Request){try{
  const body=await request.json();if(typeof body.id!=='string')throw Error('เลือกปีการศึกษา');
  await prisma.$transaction(async tx=>{
   const year=await tx.schoolYear.findUnique({where:{id:body.id},include:{enrollments:true}});if(!year)throw Error('ไม่พบปีการศึกษา');
-  if(!year.enrollments.some(e=>e.status==='ACTIVE'))throw Error('กรุณานำเข้ารายชื่อที่ใช้งานก่อนตั้งเป็นปีปัจจุบัน');
   const students=await tx.student.findMany();
   for(const s of students)await tx.infirmaryVisit.updateMany({where:{studentId:s.id,studentNameSnapshot:null},data:{studentNameSnapshot:s.fullName,gradeSnapshot:s.gradeLevel,classroomSnapshot:s.classroom}});
   await tx.student.updateMany({data:{isActive:false}});
@@ -20,3 +19,46 @@ export async function PATCH(request:Request){try{
   await tx.appSetting.upsert({where:{key:'currentYearId'},create:{key:'currentYearId',value:year.id},update:{value:year.id}});
  },{timeout:120000});return Response.json({ok:true});
 }catch(e){return Response.json({error:e instanceof Error?e.message:'ตั้งค่าปีไม่ได้'},{status:400})}}
+
+export async function DELETE(request:Request){try{
+ const {searchParams}=new URL(request.url);
+ const id=searchParams.get('id');
+ if(!id)throw Error('ไม่พบรหัสปีการศึกษาที่ต้องการลบ');
+ await prisma.$transaction(async tx=>{
+  const year=await tx.schoolYear.findUnique({where:{id},include:{enrollments:true,imports:{include:{changes:true}}}});
+  if(!year)throw Error('ไม่พบปีการศึกษานี้');
+  
+  // 1. Delete import changes and imports
+  for(const imp of year.imports){
+    await tx.studentImportChange.deleteMany({where:{importId:imp.id}});
+  }
+  await tx.studentImport.deleteMany({where:{yearId:id}});
+
+  // 2. Delete enrollments of this year
+  await tx.studentEnrollment.deleteMany({where:{yearId:id}});
+
+  // 3. Delete academic terms of this year
+  await tx.academicTerm.deleteMany({where:{academicYear:year.year}});
+
+  // 4. Delete the school year
+  await tx.schoolYear.delete({where:{id}});
+
+  // 5. If this year was currentYearId, switch to another year or unset
+  const current=await tx.appSetting.findUnique({where:{key:'currentYearId'}});
+  if(current?.value===id){
+    const nextYear=await tx.schoolYear.findFirst({orderBy:{year:'desc'}});
+    if(nextYear){
+      await tx.appSetting.update({where:{key:'currentYearId'},data:{value:nextYear.id}});
+      const nextEnrollments=await tx.studentEnrollment.findMany({where:{yearId:nextYear.id,status:'ACTIVE'}});
+      await tx.student.updateMany({data:{isActive:false}});
+      for(const e of nextEnrollments){
+        await tx.student.update({where:{id:e.studentId},data:{gradeLevel:e.gradeLevel,classroom:e.classroom,isActive:true}});
+      }
+    }else{
+      await tx.appSetting.delete({where:{key:'currentYearId'}});
+      await tx.student.updateMany({data:{isActive:false}});
+    }
+  }
+ });
+ return Response.json({ok:true});
+}catch(e){return Response.json({error:e instanceof Error?e.message:'ลบปีการศึกษาไม่ได้'},{status:400})}}

@@ -45,9 +45,19 @@ export function validateImportRows(value:unknown):ImportStudent[]{
   row.personType=v.personType==='STAFF'?'STAFF':'STUDENT';
   row.department=typeof v.department==='string'?v.department.trim():'';row.position=typeof v.position==='string'?v.position.trim():'';
   if((row.department||'').length>200||(row.position||'').length>200)throw Error(`แถว ${index+1}: กลุ่มงานหรือตำแหน่งยาวเกินกำหนด`);
-  for(const key of ['studentCode','fullName','gradeLevel','classroom'] as const)if(!row[key]||row[key].length>200)throw Error(`แถว ${index+1}: กรอกรหัส ชื่อ ชั้น และห้องให้ครบ (ไม่เกิน 200 ตัวอักษร)`);
-  if(/^\d{13}$/.test(row.studentCode))throw Error(`แถว ${index+1}: กรุณาเลือกรหัสนักเรียนของโรงเรียน ไม่ใช่เลขประจำตัวประชาชน`);
-  if(row.rollNumber.length>20)throw Error(`แถว ${index+1}: เลขที่ไม่ถูกต้อง`);
+  
+  if (row.personType === 'STAFF') {
+    if (!row.fullName || row.fullName.length > 200) throw Error(`แถว ${index+1}: กรุณากรอกชื่อ-นามสกุลบุคลากร`);
+    if (!row.studentCode) {
+      row.studentCode = `STAFF-AUTO-${index+1}`;
+    }
+    if (!row.gradeLevel) row.gradeLevel = 'บุคลากร';
+    if (!row.classroom) row.classroom = row.department || 'บุคลากร';
+  } else {
+    for(const key of ['studentCode','fullName','gradeLevel','classroom'] as const)if(!row[key]||row[key].length>200)throw Error(`แถว ${index+1}: กรอกรหัส ชื่อ ชั้น และห้องให้ครบ (ไม่เกิน 200 ตัวอักษร)`);
+    if(/^\d{13}$/.test(row.studentCode))throw Error(`แถว ${index+1}: กรุณาเลือกรหัสนักเรียนของโรงเรียน ไม่ใช่เลขประจำตัวประชาชน`);
+    if(row.rollNumber.length>20)throw Error(`แถว ${index+1}: เลขที่ไม่ถูกต้อง`);
+  }
   if(seen.has(row.studentCode))throw Error(`รหัสนักเรียน ${row.studentCode} ซ้ำในไฟล์ กรุณาแก้ก่อนนำเข้า`);
   seen.add(row.studentCode);return row;
  });

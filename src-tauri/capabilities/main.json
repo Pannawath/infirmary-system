@@ -1,7 +1,7 @@
 {
   "identifier": "main-window",
-  "description": "Window controls for the local infirmary app only",
-  "windows": ["main"],
+  "description": "Window controls and secondary window management for local infirmary app",
+  "windows": ["*"],
   "remote": {
     "urls": ["http://127.0.0.1:3103*", "http://localhost:3103*"]
   },
@@ -9,13 +9,24 @@
     "core:default",
     "core:event:default",
     "core:window:default",
+    "core:window:allow-create",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
     "core:window:allow-maximize",
     "core:window:allow-unmaximize",
     "core:window:allow-close",
+    "core:window:allow-destroy",
     "core:window:allow-start-dragging",
     "core:window:allow-is-maximized",
-    "core:window:allow-is-fullscreen"
+    "core:window:allow-is-fullscreen",
+    "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:webview:default",
+    "core:webview:allow-create-webview",
+    "core:webview:allow-create-webview-window",
+    "core:webview:allow-webview-close",
+    "core:webview:allow-webview-show",
+    "core:webview:allow-webview-hide"
   ]
 }

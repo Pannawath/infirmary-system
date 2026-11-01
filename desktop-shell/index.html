@@ -62,12 +62,16 @@
   </div>
   <script>
     async function checkBackend() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isExcel = window.location.pathname.includes('excel-window') || urlParams.get('window') === 'excel';
+      const redirectPath = isExcel ? '/excel-window' : '';
+
       const start = Date.now();
       while (Date.now() - start < 20000) {
         try {
           const res = await fetch('http://127.0.0.1:3103/api/desktop-health', { mode: 'cors' });
           if (res.ok) {
-            window.location.replace('http://127.0.0.1:3103');
+            window.location.replace(`http://127.0.0.1:3103${redirectPath}`);
             return;
           }
         } catch (e) {}
