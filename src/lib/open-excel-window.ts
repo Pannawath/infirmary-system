@@ -51,10 +51,8 @@ export async function openExcelStudioWindow(options: OpenExcelWindowOptions): Pr
         await existing.destroy();
       }
 
-      // In Tauri desktop environment, the Next.js server is at http://127.0.0.1:3103
-      const targetUrl = window.location.origin.includes('127.0.0.1') || window.location.origin.includes('localhost')
-        ? `${window.location.origin}/excel-window`
-        : 'http://127.0.0.1:3103/excel-window';
+      // Secondary windows must use this launch's backend, including its dynamic port.
+      const targetUrl = new URL('/excel-window', window.location.origin).href;
 
       // Create a brand new OS-level window pointing directly to the full URL
       const win = new WebviewWindow('excel-studio', {

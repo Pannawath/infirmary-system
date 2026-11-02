@@ -21,7 +21,7 @@ fs.mkdirSync(target, { recursive: true });
 
 const filter = (source) => {
   const name = path.basename(source);
-  return !name.startsWith('.env') && !/\.(xlsx|csv|db|sqlite)(-|$)/i.test(name) && name !== '.git';
+  return !name.startsWith('.env') && !/\.(xlsx|csv|db|sqlite)(-|$)/i.test(name) && !/\.tmp\d*$/i.test(name) && name !== '.git';
 };
 
 console.log('Copying standalone bundle...');
@@ -34,7 +34,7 @@ fs.copyFileSync(process.execPath, path.join(target, 'node.exe'));
 for (const name of ['.prisma/client', '@prisma/client']) {
   const src = path.join(root, 'node_modules', name);
   if (fs.existsSync(src)) {
-    fs.cpSync(src, path.join(target, 'node_modules', name), { recursive: true });
+    fs.cpSync(src, path.join(target, 'node_modules', name), { recursive: true, filter });
   }
 }
 

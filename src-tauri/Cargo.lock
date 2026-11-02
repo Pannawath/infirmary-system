@@ -2847,8 +2847,9 @@ dependencies = [
 
 [[package]]
 name = "spk-infirmary"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
+ "serde_json",
  "tauri",
  "tauri-build",
 ]

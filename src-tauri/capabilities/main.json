@@ -3,7 +3,7 @@
   "description": "Window controls and secondary window management for local infirmary app",
   "windows": ["*"],
   "remote": {
-    "urls": ["http://127.0.0.1:3103*", "http://localhost:3103*"]
+    "urls": ["http://127.0.0.1:*", "http://localhost:3103*"]
   },
   "permissions": [
     "core:default",
